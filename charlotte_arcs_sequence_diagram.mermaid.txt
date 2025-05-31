@@ -1,0 +1,171 @@
+sequenceDiagram
+    actor User
+    participant Frontend as Frontend (HTML/JS/CSS)
+    participant API as API Gateway (Laravel)
+    participant ProductSvc as Product Service (Java/Spring Boot)
+    participant UserSvc as User Service (PHP/Laravel)
+    participant ArtistSvc as Artist Service (PHP/Laravel)
+    participant NotifSvc as Notification Service (Python/Flask)
+    participant DB as Supabase Database
+    participant Providers as Dropshipping Providers
+    participant Payment as Payment Processors
+
+    %% Page Load Sequence
+    User->>Frontend: Visita tienda
+    Frontend->>API: GET /init-data
+    API->>ProductSvc: getHighlightedProducts()
+    ProductSvc->>DB: query("products", {highlighted: true})
+    DB-->>ProductSvc: [productos destacados]
+    ProductSvc-->>API: productos destacados
+    API->>ArtistSvc: getFeaturedArtists()
+    ArtistSvc->>DB: query("artists", {featured: true})
+    DB-->>ArtistSvc: [artistas destacados]
+    ArtistSvc-->>API: artistas destacados
+    API-->>Frontend: datos iniciales
+    Frontend->>User: Muestra página principal
+
+    %% User Registration
+    User->>Frontend: Registrarse (formulario)
+    Frontend->>API: POST /auth/register
+    API->>UserSvc: register(userData)
+    UserSvc->>DB: insert("users", userData)
+    DB-->>UserSvc: userId
+    UserSvc-->>API: success + token
+    API-->>Frontend: token JWT
+    Frontend->>User: Muestra confirmación
+
+    %% Product Browsing
+    User->>Frontend: Navega a categoría (ej: mujer)
+    Frontend->>API: GET /products?category=mujer
+    API->>ProductSvc: getProducts({category: "mujer"})
+    ProductSvc->>DB: query("products", {category: "mujer"})
+    DB-->>ProductSvc: [productos]
+    alt Inventario insuficiente
+        ProductSvc->>Providers: fetchProducts("mujer")
+        Providers-->>ProductSvc: [productos externos]
+        ProductSvc->>DB: batchInsert("products", productos)
+        DB-->>ProductSvc: insertResult
+    end
+    ProductSvc-->>API: productos
+    API-->>Frontend: productos
+    Frontend->>User: Muestra catálogo
+
+    %% Add to Cart
+    User->>Frontend: Agrega producto al carrito
+    Frontend->>API: POST /cart/items
+    API->>ProductSvc: checkAvailability(productId)
+    ProductSvc->>DB: query("products", {id: productId})
+    DB-->>ProductSvc: producto
+    alt No disponible localmente
+        ProductSvc->>Providers: checkAvailability(productId)
+        Providers-->>ProductSvc: disponibilidad
+    end
+    ProductSvc-->>API: disponibilidad
+    API->>UserSvc: addToCart(userId, productId, quantity)
+    UserSvc->>DB: insert("cart_items", {userId, productId, quantity})
+    DB-->>UserSvc: success
+    UserSvc-->>API: cart updated
+    API-->>Frontend: confirmation
+    Frontend->>User: Muestra carrito actualizado
+
+    %% Checkout Process
+    User->>Frontend: Proceder al pago
+    Frontend->>API: GET /cart/checkout
+    API->>UserSvc: getCart(userId)
+    UserSvc->>DB: query("cart_items", {userId})
+    DB-->>UserSvc: [items]
+    UserSvc-->>API: cart items
+    API->>ProductSvc: calculatePrices(items)
+    ProductSvc-->>API: precios, total
+    API-->>Frontend: checkout data
+    Frontend->>User: Muestra página de pago
+    User->>Frontend: Selecciona método de pago (Stripe)
+    Frontend->>API: POST /payment/process
+    API->>Payment: processPayment(paymentData)
+    Payment-->>API: paymentResult
+    alt Pago exitoso
+        API->>UserSvc: createOrder(userId, items, payment)
+        UserSvc->>DB: insert("orders", orderData)
+        DB-->>UserSvc: orderId
+        UserSvc->>DB: delete("cart_items", {userId})
+        DB-->>UserSvc: success
+        UserSvc-->>API: order created
+        API->>NotifSvc: sendOrderConfirmation(email, orderId)
+        NotifSvc->>DB: query("orders", {id: orderId})
+        DB-->>NotifSvc: orderDetails
+        NotifSvc-->>API: email sent
+        API-->>Frontend: success, orderId
+        Frontend->>User: Muestra confirmación
+    else Pago fallido
+        API-->>Frontend: error
+        Frontend->>User: Muestra error
+    end
+
+    %% Artist Voting
+    User->>Frontend: Visita página de artistas
+    Frontend->>API: GET /artists
+    API->>ArtistSvc: getArtists()
+    ArtistSvc->>DB: query("artists")
+    DB-->>ArtistSvc: [artistas]
+    ArtistSvc->>DB: query("votes", groupByArtist)
+    DB-->>ArtistSvc: [estadísticas]
+    ArtistSvc-->>API: artistas con estadísticas
+    API-->>Frontend: artistas con estadísticas
+    Frontend->>User: Muestra página de artistas
+    User->>Frontend: Vota por artista
+    Frontend->>API: POST /artists/vote
+    API->>ArtistSvc: processVote(artistId, userId)
+    ArtistSvc->>UserSvc: checkMembership(userId)
+    UserSvc->>DB: query("users", {id: userId})
+    DB-->>UserSvc: userData
+    UserSvc-->>ArtistSvc: membershipStatus
+    alt Usuario con membresía
+        ArtistSvc->>DB: insert("votes", {artistId, userId})
+        DB-->>ArtistSvc: voteId
+        ArtistSvc->>DB: update("artists", {votes: +1})
+        DB-->>ArtistSvc: success
+        ArtistSvc-->>API: vote recorded
+        API-->>Frontend: success
+        Frontend->>User: Muestra confirmación
+    else Sin membresía
+        ArtistSvc-->>API: unauthorized
+        API-->>Frontend: error
+        Frontend->>User: Muestra opción de membresía
+    end
+
+    %% Artist Nomination
+    User->>Frontend: Visita página de postulación
+    Frontend->>User: Muestra formulario
+    User->>Frontend: Envía formulario
+    Frontend->>API: POST /nominations
+    API->>NotifSvc: processNomination(nominationData)
+    NotifSvc->>DB: insert("nominations", nominationData)
+    DB-->>NotifSvc: nominationId
+    NotifSvc->>NotifSvc: sendEmail("atencionactech024@gmail.com")
+    NotifSvc->>NotifSvc: sendConfirmation(nominationData.email)
+    NotifSvc-->>API: nomination processed
+    API-->>Frontend: success
+    Frontend->>User: Muestra confirmación
+
+    %% Membership Upgrade
+    User->>Frontend: Selecciona membresía
+    Frontend->>API: POST /membership
+    API->>UserSvc: createMembership(userId, membershipType)
+    UserSvc->>DB: update("users", {membershipType})
+    DB-->>UserSvc: success
+    UserSvc-->>API: membership updated
+    API->>Payment: processPayment(membershipData)
+    Payment-->>API: paymentResult
+    API-->>Frontend: success
+    Frontend->>User: Muestra confirmación
+
+    %% System Initialization
+    note over Frontend,DB: Inicialización del Sistema
+    API->>ProductSvc: initializeProductCatalog()
+    ProductSvc->>Providers: fetchInitialProducts()
+    Providers-->>ProductSvc: [productos iniciales]
+    ProductSvc->>DB: batchInsert("products", productos)
+    DB-->>ProductSvc: success
+    API->>ArtistSvc: initializeArtistData()
+    ArtistSvc->>DB: batchInsert("artists", artistData)
+    DB-->>ArtistSvc: success
