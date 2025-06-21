@@ -36,14 +36,3 @@ Con el lema de Tokima, *"Lo imposible solo toma un poco más de tiempo"*, seguim
 **Alejandro Ramírez, CEO**:  
 *"Al Sr. Tokima, mi mentor, gracias por ver en mí un guardián. Tus pilares guían nuestro camino, y honramos tu legado."*
 
-## ✨ Características del Sitio
-- **Diseño Futurista**: Animaciones neón, tipografía Orbitron, paleta multicolor (cian #00FFFF, magenta #FF00FF, azul eléctrico #00B7EB, dorado #FFD700).  
-- **Header**: Logo a la izquierda (redirige a `index.html`), espacio central, menú hamburguesa a la derecha.  
-- **Modo Día/Noche**: Burbuja flotante izquierda que sigue al usuario, letras negras (#000000) en día, blancas (#FFFFFF) en noche, bloques magenta (día) o cian (noche).  
-- **Pie de Página**: Logo, enlaces a "Contacto", "Términos", "Privacidad", y "© 2025 Actech. Todos los derechos reservados."  
-- **Funcionalidades**:  
-  - **Stripe**: Pagos para planes (Lobo Iniciado, Guardián, Alfa) y productos (Camiseta Fenrir, Álbum Lunar Promise).  
-  - **EmailJS**: Formulario a `atencionactech024@gmail.com`.  
-  - **Responsividad**: PC y Android.  
-- **Animaciones**: Neón, transiciones, burbuja suave.
-
