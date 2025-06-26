@@ -42,5 +42,4 @@ Con el lema de Tokima, *"Lo imposible solo toma un poco más de tiempo"*, seguim
 ## 🚀 Instalación y Configuración
 1. **Clona el Repositorio**:
    ```bash
-   git clone https://github.com/FenrirXlll/Charlotte-ARCS-.git
-   cd Worlds-In-Actech
+   git clone https://github.com/FenrirXlll/Charlotte.git
